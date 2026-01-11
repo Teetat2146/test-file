@@ -1,21 +1,42 @@
-import { User } from '@/types';
+// src/lib/auth.ts
+import { User } from "@/types";
 
 export const auth = {
   setToken(token: string) {
-    localStorage.setItem('token', token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+    }
   },
 
   getToken(): string | null {
-    return localStorage.getItem('token');
-  },
-
-  setUser(user: User) {
-    localStorage.setItem('user', JSON.stringify(user));
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("token");
+    }
+    return null;
   },
 
   getUser(): User | null {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return null;
+      
+      try {
+        const userData = JSON.parse(userStr);
+        if (typeof userData !== 'object') return null;
+        return userData as User;
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+        return null;
+      }
+    }
+    return null;
+  },
+
+  setUser(user: User) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(user));
+      window.dispatchEvent(new Event('auth-change'));
+    }
   },
 
   isAuthenticated(): boolean {
@@ -24,11 +45,24 @@ export const auth = {
 
   isAdmin(): boolean {
     const user = this.getUser();
-    return user?.role === 'ADMIN' || user?.role === 'INTERPRETER' || user?.role === 'LECTURER';
+    if (!user) return false;
+
+    // --- แก้ไขจุดที่ Error ---
+    // ใช้ user.role โดยตรง (ลบ user_metadata ออก)
+    const userRole = user.role;
+    
+    return (
+      userRole === "ADMIN" ||
+      userRole === "INTERPRETER" ||
+      userRole === "LECTURER"
+    );
   },
 
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event('auth-change'));
+    }
   },
 };

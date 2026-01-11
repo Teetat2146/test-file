@@ -13,8 +13,22 @@ export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  useEffect(() => {
+  // สร้างฟังก์ชันกลางสำหรับโหลดข้อมูล
+  const loadUser = () => {
     setUser(auth.getUser());
+  };
+
+  useEffect(() => {
+    loadUser(); // โหลดตอนเปลี่ยนหน้า
+
+    // เพิ่มการดักฟัง Event 'auth-change' ที่เราเขียนไว้ใน lib/auth.ts
+    window.addEventListener('auth-change', loadUser);
+    window.addEventListener('storage', loadUser); // กรณีเปิดหลาย Tab
+
+    return () => {
+      window.removeEventListener('auth-change', loadUser);
+      window.removeEventListener('storage', loadUser);
+    };
   }, [pathname]);
 
   const handleLogout = () => {
@@ -104,29 +118,34 @@ export default function Header() {
             )}
           </nav>
 
-          {/* User section */}
-          <div className="hidden md:flex items-center space-x-3">
-            {user ? (
-              <>
-                <div className="text-right">
-                  <p className="text-base font-medium text-gray-900">{user.name}</p>
-                  <p className="text-sm text-gray-600">{user.role}</p>
-                </div>
-                <Button variant="secondary" onClick={handleLogout}>
-                  ออกจากระบบ
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link href={ROUTES.LOGIN}>
-                  <Button variant="secondary">เข้าสู่ระบบ</Button>
-                </Link>
-                <Link href={ROUTES.REGISTER}>
-                  <Button>ลงทะเบียน</Button>
-                </Link>
-              </>
-            )}
-          </div>
+{/* Desktop User section */}
+<div className="hidden md:flex items-center space-x-3">
+  {user ? (
+    <div className="flex items-center space-x-4">
+      <div className="text-right">
+        {/* ใช้ ? หลัง user และ user_metadata เสมอ */}
+        <p className="text-base font-medium text-gray-900 leading-none">
+          {user?.user_metadata?.name || user?.name || 'User'}
+        </p>
+        <p className="text-xs text-gray-500 font-semibold uppercase mt-1">
+          {user?.user_metadata?.role || user?.role || 'authenticated'}
+        </p>
+      </div>
+      <Button variant="secondary" onClick={handleLogout}>
+        ออกจากระบบ
+      </Button>
+    </div>
+  ) : (
+    <>
+      <Link href={ROUTES.LOGIN}>
+        <Button variant="secondary">เข้าสู่ระบบ</Button>
+      </Link>
+      <Link href={ROUTES.REGISTER}>
+        <Button>ลงทะเบียน</Button>
+      </Link>
+    </>
+  )}
+</div>
 
           {/* Mobile menu button */}
           <button

@@ -1,6 +1,7 @@
+// src/app/vocabulary/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -9,7 +10,8 @@ import SearchBox from '@/components/features/SearchBox';
 import Loading from '@/components/ui/Loading';
 import { vocabularyApi, coursesApi } from '@/lib/api';
 
-export default function VocabularyPage() {
+// 1. เปลี่ยนชื่อ Component หลักเดิมเป็น VocabularyContent (ไม่ต้อง export default)
+function VocabularyContent() {
   const searchParams = useSearchParams();
   const [vocabularies, setVocabularies] = useState<any[]>([]);
   const [filteredVocabs, setFilteredVocabs] = useState<any[]>([]);
@@ -38,14 +40,12 @@ export default function VocabularyPage() {
       setFilteredVocabs(vocabData);
       setCourses(coursesData);
 
-      // If there's a search query, perform search
       const q = searchParams.get('q');
       if (q) {
         performSearch(q, vocabData);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
-      alert('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
@@ -61,11 +61,11 @@ export default function VocabularyPage() {
       const results = await vocabularyApi.search(keyword);
       setFilteredVocabs(results);
     } catch (error) {
-      // Fallback to client-side filtering
+      console.error('API search failed, falling back to client-side:', error);
       const filtered = vocabList.filter(v =>
-        v.termThai.toLowerCase().includes(keyword.toLowerCase()) ||
-        v.termEnglish?.toLowerCase().includes(keyword.toLowerCase()) ||
-        v.definition.toLowerCase().includes(keyword.toLowerCase())
+        v.term_thai?.toLowerCase().includes(keyword.toLowerCase()) ||
+        v.term_english?.toLowerCase().includes(keyword.toLowerCase()) ||
+        v.definition?.toLowerCase().includes(keyword.toLowerCase())
       );
       setFilteredVocabs(filtered);
     }
@@ -74,15 +74,16 @@ export default function VocabularyPage() {
   const filterVocabularies = () => {
     let filtered = [...vocabularies];
 
-    // Filter by course
     if (selectedCourse !== 'all') {
-      filtered = filtered.filter(v => v.courseId === selectedCourse);
+      filtered = filtered.filter(v => v.course_id === selectedCourse);
     }
 
-    // Filter by search keyword
     if (searchKeyword.trim()) {
-      performSearch(searchKeyword, filtered);
-      return;
+       filtered = filtered.filter(v =>
+        v.term_thai?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        v.term_english?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        v.definition?.toLowerCase().includes(searchKeyword.toLowerCase())
+      );
     }
 
     setFilteredVocabs(filtered);
@@ -102,13 +103,11 @@ export default function VocabularyPage() {
 
       <main className="flex-1 bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">คำศัพท์ทั้งหมด</h1>
             <p className="text-lg text-gray-600">ค้นหาและเรียนรู้คำศัพท์เฉพาะทางจากทุกรายวิชา</p>
           </div>
 
-          {/* Search */}
           <div className="mb-8 max-w-2xl">
             <SearchBox
               onSearch={handleSearch}
@@ -117,7 +116,6 @@ export default function VocabularyPage() {
             />
           </div>
 
-          {/* Course Filter */}
           {courses.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
@@ -151,7 +149,6 @@ export default function VocabularyPage() {
             </div>
           )}
 
-          {/* Results count */}
           <div className="mb-6">
             <p className="text-base text-gray-600">
               {searchKeyword
@@ -160,7 +157,6 @@ export default function VocabularyPage() {
             </p>
           </div>
 
-          {/* Vocabularies Grid */}
           {filteredVocabs.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredVocabs.map((vocabulary) => (
@@ -196,5 +192,14 @@ export default function VocabularyPage() {
 
       <Footer />
     </div>
+  );
+}
+
+// 2. สร้าง Wrapper Component เป็น default export ที่มี Suspense
+export default function VocabularyPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <VocabularyContent />
+    </Suspense>
   );
 }
