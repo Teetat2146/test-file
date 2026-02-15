@@ -1,29 +1,88 @@
-// src/components/features/CourseCard.tsx
 'use client'
 
-import { Course } from '@/types';
+import { useState, useEffect } from 'react';
+import { Course, User } from '@/types';
+import { auth } from '@/lib/auth';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 interface CourseCardProps {
   course: Course;
   vocabularyCount?: number;
+  onToggleVisibility?: (course: Course) => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 }
 
-export default function CourseCard({ course, vocabularyCount }: CourseCardProps) {
+export default function CourseCard({ course, vocabularyCount, onToggleVisibility, isPinned, onTogglePin }: CourseCardProps) {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    setUser(auth.getUser());
+
+    // Listen for auth changes
+    const handleAuthChange = () => {
+      setUser(auth.getUser());
+    };
+
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+    };
+  }, []);
 
   return (
     <div
       onClick={() => router.push(`/courses/${course.id}`)}
-      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer overflow-hidden group"
+      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer overflow-hidden group relative"
     >
+      {/* Pin Button - Top Left */}
+      {user && onTogglePin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          className={`absolute top-3 left-3 z-20 p-1.5 rounded-full transition-colors duration-200 shadow-sm border ${isPinned
+            ? 'bg-yellow-100 text-yellow-600 border-yellow-200 hover:bg-yellow-200'
+            : 'bg-white/90 text-gray-400 border-transparent hover:bg-white hover:text-yellow-500'
+            }`}
+          title={isPinned ? "เลิกปักหมุด" : "ปักหมุดรายวิชา"}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Admin Visibility Toggle - Top Right (Below Badge) */}
+      {onToggleVisibility && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleVisibility(course);
+          }}
+          className={`absolute top-12 right-3 z-20 px-2 py-1 rounded text-xs font-bold shadow-md transition-colors ${(course.visibility || 'everyone') === 'everyone' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+              course.visibility === 'login' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' :
+                'bg-red-100 text-red-800 hover:bg-red-200'
+            }`}
+        >
+          {(course.visibility || 'everyone') === 'everyone' ? 'สาธารณะ' :
+            course.visibility === 'login' ? 'สมาชิก' : 'ผู้ดูแล'}
+        </button>
+      )}
+
       {/* Course image */}
       <div className="relative h-40 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 overflow-hidden">
-        {/* แก้ไขตรงนี้: เปลี่ยนจาก imageUrl เป็น image_url */}
         {course.image_url ? (
           <Image
-            src={course.image_url} // แก้ไขตรงนี้ด้วย
+            src={course.image_url}
             alt={course.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-200"
@@ -35,9 +94,9 @@ export default function CourseCard({ course, vocabularyCount }: CourseCardProps)
             </svg>
           </div>
         )}
-        
+
         {/* Course code badge */}
-        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-3 py-1 rounded-lg text-sm font-mono">
+        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-3 py-1 rounded-lg text-sm font-mono z-10">
           {course.code}
         </div>
       </div>
